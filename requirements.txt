@@ -5,3 +5,4 @@ python-docx
 faiss-cpu
 sentence-transformers
 python-dotenv
+modal
