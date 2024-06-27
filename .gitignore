@@ -1,7 +1,6 @@
 #ignore config files
 *.pdf
 *.docx
-*.txt
 uploads/
 index_file
 text_chunks_file
