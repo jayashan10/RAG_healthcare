@@ -6,5 +6,5 @@ index_file
 text_chunks_file
 *.env
 __pycache__/
-
+user_data
 

@@ -10,9 +10,6 @@ import pickle
 # Load the model for embedding generation
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-index = faiss.IndexFlatL2(384)  # Dimension of the embeddings
-text_chunks = []
-
 # Set your OpenAI API key
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
@@ -57,8 +54,11 @@ def embed_text(text):
     # Generate embeddings using sentence-transformers
     return model.encode([text])[0]
 
-def index_document(file_paths):
-    print("indexing docs...........")
+def index_document(file_paths, user_dir):
+    print("indexing docs...")
+    index = faiss.IndexFlatL2(384)  # Dimension of the embeddings
+    text_chunks = []
+    
     for file_path in file_paths:
         # Process the document and index the chunks
         chunks = process_document(file_path)
@@ -67,10 +67,13 @@ def index_document(file_paths):
             embedding = model.encode(chunk)
             index.add(np.array([embedding], dtype=np.float32))
     
-    # Save the text chunks and their embeddings to files
-    with open('text_chunks_file', 'wb') as f:
+    # Save the text chunks and their embeddings to files in the user-specific directory
+    text_chunks_file = os.path.join(user_dir, 'text_chunks_file')
+    index_file = os.path.join(user_dir, 'index_file')
+    
+    with open(text_chunks_file, 'wb') as f:
         pickle.dump(text_chunks, f)
-    faiss.write_index(index, 'index_file')
-
-
-
+    faiss.write_index(index, index_file)
+    
+    print(f"Indexing complete. Files saved in {user_dir}")
+    return text_chunks, index
