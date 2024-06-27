@@ -1,0 +1,7 @@
+streamlit
+openai
+PyMuPDF
+python-docx
+faiss-cpu
+sentence-transformers
+
