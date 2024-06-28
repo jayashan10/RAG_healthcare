@@ -5,4 +5,4 @@ python-docx
 faiss-cpu
 sentence-transformers
 python-dotenv
-modal
+modal==0.62.209
