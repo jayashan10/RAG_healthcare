@@ -142,9 +142,9 @@ if prompt := st.chat_input("What would you like to know about the clinical trial
 
 
 # Add a button to clear chat history and user data
-if st.button("Clear Chat History and User Data"):
+if st.button("Clear Chat History"):
     st.session_state.messages = []
-    cleanup_user_files()
+    # cleanup_user_files()
     st.experimental_rerun()
 
 # Cleanup on session end
