@@ -54,11 +54,11 @@ with st.sidebar:
     st.title("Model Selection")
     with st.expander("Click here for more information about the models"):
         st.write("""
-        **meta-llama/Meta-Llama-3-8B**: This is a large language model trained by Meta. It's good for generating human-like text based on the provided context.
+        **meta-llama/Meta-Llama-3-8B**: This is a large language model trained by Meta. It's good for generating human-like text based on the provided context. It is deployed using Modal Labs
 
-        **OpenAI-GPT4**: This is a large language model trained by OpenAI. It's also good for generating human-like text, but it might have different strengths and weaknesses compared to Meta-Llama-3-8B.
+        **OpenAI/GPT-4o**: This is a large language model trained by OpenAI. It's also good for generating human-like text. The responses are generated using the APIs.
         """)
-    model = st.radio('Select a model', ('meta-llama/Meta-Llama-3-8B', 'OpenAI-GPT4'))
+    model = st.radio('Select a model', ('meta-llama/Meta-Llama-3-8B', 'OpenAI/GPT-4o'))
 
 # Main content area
 st.title('Clinical Trial Document RAG Assistant')

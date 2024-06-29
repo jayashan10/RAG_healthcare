@@ -2,7 +2,7 @@ import faiss
 import numpy as np
 from document_processing import embed_text
 
-def retrieve_chunks(query, text_chunks, metadata, index, top_k=5):
+def retrieve_chunks(query, text_chunks, metadata, index, top_k=10):
     # Embed the query using sentence-transformers
     query_embedding = embed_text(query)
 
