@@ -48,7 +48,7 @@ with st.sidebar:
     if st.button('Process Documents') and file_paths:
         with st.spinner('Processing documents...'):
             user_dir = get_user_dir()
-            st.session_state.text_chunks, st.session_state.index = index_document(file_paths, user_dir)
+            st.session_state.text_chunks, st.session_state.metadata, st.session_state.index = index_document(file_paths, user_dir)
         st.success('Files uploaded and processed successfully!')
 
     st.title("Model Selection")
@@ -71,39 +71,64 @@ if 'messages' not in st.session_state:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        if message["role"] == "assistant" and "sources" in message:
+            with st.expander("View Sources"):
+                for source in message["sources"]:
+                    st.markdown(f"**Document:** {source['document']}")
+                    st.markdown(f"**Page:** {source['page_number']}")
+                    st.markdown(f"**Excerpt:** {source['excerpt']}")
+                    st.markdown("---")
+
 
 user_dir = get_user_dir()
 text_chunks_file = os.path.join(user_dir, 'text_chunks_file')
+metadata_file = os.path.join(user_dir, 'metadata_file')
 index_file = os.path.join(user_dir, 'index_file')
 
-if os.path.exists(text_chunks_file) and os.path.exists(index_file):
+if os.path.exists(text_chunks_file) and os.path.exists(metadata_file) and os.path.exists(index_file):
     with open(text_chunks_file, 'rb') as f:
         st.session_state.text_chunks = pickle.load(f)
+    with open(metadata_file, 'rb') as f:
+        st.session_state.metadata = pickle.load(f)
     st.session_state.index = faiss.read_index(index_file)
 else:
     st.session_state.text_chunks = []
+    st.session_state.metadata = []
     st.session_state.index = None
+
+def get_chat_history_without_sources(messages):
+    return [{"role": msg["role"], "content": msg["content"]} for msg in messages]
 
 # React to user input
 if prompt := st.chat_input("What would you like to know about the clinical trial?"):
-    # Display user message in chat message container
     st.chat_message("user").markdown(prompt)
 
-    # Generate a response
     if st.session_state.index is not None:
-        chunks = retrieve_chunks(prompt, st.session_state.text_chunks, st.session_state.index)
+        chunks = retrieve_chunks(prompt, st.session_state.text_chunks, st.session_state.metadata, st.session_state.index)
+        
         if chunks:
+            chat_history = get_chat_history_without_sources(st.session_state.messages)
             if model == 'meta-llama/Meta-Llama-3-8B':
                 response = generate_response_modal_llama(chunks, prompt, [msg["content"] for msg in st.session_state.messages])
             else:
                 response = generate_response(chunks, prompt, [msg["content"] for msg in st.session_state.messages])
             
-            # Display assistant response in chat message container
             with st.chat_message("assistant"):
-                st.markdown(response)
+                st.markdown(response['answer'])
+                with st.expander("View Sources"):
+                    for source in response['sources']:
+                        st.markdown(f"**Document:** {source['document']}")
+                        st.markdown(f"**Page:** {source['page_number']}")
+                        st.markdown(f"**Excerpt:** {source['excerpt']}")
+                        st.markdown("---")
+
             # Add messages to chat history
             st.session_state.messages.append({"role": "user", "content": prompt})
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": response['answer'],
+                "sources": response['sources']
+            })
         else:
             with st.chat_message("assistant"):
                 st.markdown("I couldn't find any relevant information in the uploaded documents. Could you please rephrase your question or upload a relevant document?")
@@ -114,6 +139,7 @@ if prompt := st.chat_input("What would you like to know about the clinical trial
             st.markdown("No documents have been processed yet. Please upload and process some documents first.")
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.session_state.messages.append({"role": "assistant", "content": "No documents have been processed yet. Please upload and process some documents first."})
+
 
 # Add a button to clear chat history and user data
 if st.button("Clear Chat History and User Data"):
