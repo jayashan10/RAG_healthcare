@@ -8,6 +8,7 @@ import pickle
 import faiss
 import shutil
 import streamlit_pills as stp
+from prompt_mapping import PROMPT_MAPPING
 
 # Function to get user-specific directory
 def get_user_dir():
@@ -23,6 +24,9 @@ def cleanup_user_files():
     if os.path.exists(user_dir):
         shutil.rmtree(user_dir)
     print(f"Cleanup completed for user {st.session_state.user_id}")
+
+def get_preconfigured_prompts():
+    return list(PROMPT_MAPPING.keys())
 
 # Function to display compact sources
 def display_compact_sources(sources):
@@ -100,7 +104,7 @@ def display_clickable_sources(sources, message_index):
             st.markdown(f"**Page:** {selected_source['page_number']}")
             st.markdown(f"**Excerpt:** {selected_source['excerpt']}")
 
-# Initialize session state
+
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.messages = []
@@ -109,11 +113,11 @@ if 'initialized' not in st.session_state:
     st.session_state.metadata = []
     st.session_state.index = None
     st.session_state.session_id = str(uuid.uuid4())
+    st.session_state.pill_key = 0  # New variable to control pill component key
     cleanup_user_files()  # Clean up files from previous session
 
 # Set up the Streamlit app
-st.set_page_config(page_title="Clinical Trial RAG Assistant", layout="wide")
-
+st.set_page_config(page_title="Clinical Trial Protocol Assistant", layout="wide")
 # Sidebar for document upload
 with st.sidebar:
     st.title("Document Upload")
@@ -143,7 +147,11 @@ with st.sidebar:
     model = st.radio('Select a model', ('meta-llama/Meta-Llama-3-8B', 'OpenAI/GPT-4o'))
 
 # Main content area
-st.title('Clinical Trial Document RAG Assistant')
+st.title('Clinical Trial Protocol Assistant')
+# Display preconfigured prompts as pills
+st.write("Common Clinical Trial Questions:")
+preconfigured_prompts = get_preconfigured_prompts()
+selected_prompt = stp.pills("", preconfigured_prompts, key=f"pill_{st.session_state.pill_key}", index=None)
 
 # Display chat messages from history on app rerun
 for index, message in enumerate(st.session_state.messages):
@@ -152,20 +160,36 @@ for index, message in enumerate(st.session_state.messages):
         if message["role"] == "assistant" and "sources" in message:
             display_clickable_sources(message["sources"], index)
             st.empty()
+
+# Display chat input box for typing a custom question
+custom_prompt = st.chat_input("What would you like to know about the clinical trial?", key="user_input")
+
+# React to user input
+if custom_prompt:
+    frontend_prompt = custom_prompt
+    backend_prompt = custom_prompt
+    
+elif selected_prompt:
+    frontend_prompt = selected_prompt
+    backend_prompt = PROMPT_MAPPING[selected_prompt]
+   
+else:
+    frontend_prompt = None
+    backend_prompt = None
             
 # React to user input
-if prompt := st.chat_input("What would you like to know about the clinical trial?"):
-    st.chat_message("user").markdown(prompt)
+if frontend_prompt:
+    st.chat_message("user").markdown(frontend_prompt)
 
     if st.session_state.index is not None:
-        chunks = retrieve_chunks(prompt, st.session_state.text_chunks, st.session_state.metadata, st.session_state.index)
+        chunks = retrieve_chunks(backend_prompt, st.session_state.text_chunks, st.session_state.metadata, st.session_state.index)
         
         if chunks:
             chat_history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
             if model == 'meta-llama/Meta-Llama-3-8B':
-                response = generate_response_modal_llama(chunks, prompt, [msg["content"] for msg in st.session_state.messages])
+                response = generate_response_modal_llama(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
             else:
-                response = generate_response(chunks, prompt, [msg["content"] for msg in st.session_state.messages])
+                response = generate_response(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
             
             with st.chat_message("assistant"):
                 st.markdown(response['answer'])
@@ -173,7 +197,7 @@ if prompt := st.chat_input("What would you like to know about the clinical trial
                     display_clickable_sources(response['sources'], len(st.session_state.messages))
 
             # Add messages to chat history
-            st.session_state.messages.append({"role": "user", "content": prompt})
+            st.session_state.messages.append({"role": "user", "content": frontend_prompt})
             st.session_state.messages.append({
                 "role": "assistant", 
                 "content": response['answer'],
@@ -182,16 +206,22 @@ if prompt := st.chat_input("What would you like to know about the clinical trial
         else:
             with st.chat_message("assistant"):
                 st.markdown("I couldn't find any relevant information in the uploaded documents. Could you please rephrase your question or upload a relevant document?")
-            st.session_state.messages.append({"role": "user", "content": prompt})
+            st.session_state.messages.append({"role": "user", "content": frontend_prompt})
             st.session_state.messages.append({"role": "assistant", "content": "I couldn't find any relevant information in the uploaded documents. Could you please rephrase your question or upload a relevant document?"})
     else:
         with st.chat_message("assistant"):
             st.markdown("No documents have been processed yet. Please upload and process some documents first.")
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "user", "content": frontend_prompt})
         st.session_state.messages.append({"role": "assistant", "content": "No documents have been processed yet. Please upload and process some documents first."})
+
+     # Reset pill selection after processing
+    st.session_state.pill_key += 1
+    st.experimental_rerun()
 
 # Add a button to clear chat history and user data
 if st.button("Clear Chat History"):
     st.session_state.messages = []
-    cleanup_user_files()
+    st.session_state.pill_key += 1  # Increment pill key to reset pill component
+    # cleanup_user_files()
+    # cleanup_user_files()
     st.experimental_rerun()
