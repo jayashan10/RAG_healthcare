@@ -6,8 +6,14 @@ import faiss
 import numpy as np
 import pickle
 from tqdm import tqdm
-# import multiprocessing
+# from multiprocessing import Pool
 # from functools import partial
+import psutil
+import time
+
+def print_memory_usage():
+    process = psutil.Process(os.getpid())
+    print(f"Memory usage: {process.memory_info().rss / 1024**2} MB")
 
 # Load the model for embedding generation
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -59,12 +65,22 @@ def index_document(file_paths, user_dir):
     index = faiss.IndexFlatL2(384)  # Dimension of the embeddings
     
     # Batch size for processing
-    batch_size = 8
+    batch_size = 1024
     
+    print_memory_usage()
     # Generate embeddings and add them to the FAISS index
+    start_time = time.time()
     for batch_embeddings in generate_embeddings(text_chunks, batch_size):
+        print_memory_usage()
         index.add(np.array(batch_embeddings, dtype=np.float32))
-    
+    end_time = time.time()
+
+    print_memory_usage()
+
+    # Calculate and print the elapsed time
+    elapsed_time = end_time - start_time
+    print(f"Elapsed time: {elapsed_time} seconds")
+
     # Save the text chunks, metadata, and their embeddings to files in the user-specific directory
     text_chunks_file = os.path.join(user_dir, 'text_chunks_file')
     metadata_file = os.path.join(user_dir, 'metadata_file')
