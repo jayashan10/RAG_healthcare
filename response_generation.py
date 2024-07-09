@@ -72,7 +72,7 @@ def generate_response(chunks: List[dict], query: str, chat_history: List[str]) -
             'document': chunk['metadata']['document'],
             'page_number': chunk['metadata']['page_number'],
             'excerpt': chunk['text'][:100] + '...',  # First 100 characters of the chunk
-            'score': chunk['score']
+            # 'score': chunk['score']
         }
         for chunk in chunks[:5]  # Include sources for top 3 chunks
     ]
