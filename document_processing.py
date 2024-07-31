@@ -18,9 +18,9 @@ def print_memory_usage():
 # Load the model for embedding generation
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-def process_documents(directory_path):
+def process_documents(file_paths):
     # Load documents using llama_index
-    documents = SimpleDirectoryReader(directory_path).load_data()
+    documents = SimpleDirectoryReader(input_files=file_paths).load_data()
     
     # Create a more efficient node parser
     node_parser = SentenceSplitter(
@@ -44,6 +44,7 @@ def process_documents(directory_path):
     
     return text_chunks, metadata
 
+
 def embed_text_batch(texts):
     return model.encode(texts)
 
@@ -59,7 +60,7 @@ def index_document(file_paths, user_dir):
     print("Indexing docs...")
     
     # Process documents
-    text_chunks, metadata = process_documents(user_dir)
+    text_chunks, metadata = process_documents(file_paths)
     
     # Create FAISS index
     index = faiss.IndexFlatL2(384)  # Dimension of the embeddings

@@ -9,3 +9,4 @@ modal==0.62.209
 llama-index
 streamlit-pills
 psutil
+streamlit-pdf-viewer

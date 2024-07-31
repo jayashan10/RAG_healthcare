@@ -9,6 +9,10 @@ import faiss
 import shutil
 import streamlit_pills as stp
 from prompt_mapping import PROMPT_MAPPING
+import streamlit.components.v1 as components
+import base64
+from streamlit_pdf_viewer import pdf_viewer
+
 
 # Function to get user-specific directory
 def get_user_dir():
@@ -36,6 +40,20 @@ def display_compact_sources(sources):
             st.write(f"**Document:** {source['document']}")
             st.write(f"**Page:** {source['page_number']}")
             st.write(f"**Excerpt:** {source['excerpt']}")
+
+def display_pdf_viewer(file_path):
+    try:
+        # Try to display the PDF directly using the file path
+        pdf_viewer(file_path)
+    except Exception as e:
+        # If direct display fails, fall back to base64 encoding
+        st.warning(f"Direct PDF display failed. Falling back to base64 encoding. Error: {e}")
+        try:
+            with open(file_path, "rb") as f:
+                base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            pdf_viewer(base64_pdf)
+        except Exception as e:
+            st.error(f"Failed to display PDF. Error: {e}")
 
 
 def display_clickable_sources_o(sources, message_index):
@@ -113,29 +131,41 @@ if 'initialized' not in st.session_state:
     st.session_state.metadata = []
     st.session_state.index = None
     st.session_state.session_id = str(uuid.uuid4())
-    st.session_state.pill_key = 0  # New variable to control pill component key
-    cleanup_user_files()  # Clean up files from previous session
+    st.session_state.pill_key = 0
+    st.session_state.current_page = "main"
+    cleanup_user_files() # Clean up files from previous session
 
 # Set up the Streamlit app
 st.set_page_config(page_title="Clinical Trial Protocol Assistant", layout="wide")
 # Sidebar for document upload
 with st.sidebar:
     st.title("Document Upload")
-    uploaded_files = st.file_uploader('Upload a clinical trial document', type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+    use_sample_file = st.checkbox('Use sample clinical trial protocol')
+    user_dir = get_user_dir()
+    file_paths = []
 
-    if uploaded_files:
-        user_dir = get_user_dir()
-        file_paths = []
-        for uploaded_file in uploaded_files:
-            file_path = os.path.join(user_dir, uploaded_file.name)
-            with open(file_path, 'wb') as f:
-                f.write(uploaded_file.getbuffer())
-            file_paths.append(file_path)
+    if use_sample_file:
+        sample_file_path = 'clinical_trial_protocol.pdf'
+        file_dir = './sample_data'
+        file_paths.append(sample_file_path)
+        st.session_state.sample_file_selected = True
+        if st.button("View Sample File"):
+            st.session_state.current_page = "sample_file_view"
+    else:
+        st.session_state.sample_file_selected = False
+        uploaded_files = st.file_uploader('Upload a clinical trial document', type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+        if uploaded_files:
+            file_dir = user_dir
+            for uploaded_file in uploaded_files:
+                file_path = os.path.join(user_dir, uploaded_file.name)
+                with open(file_path, 'wb') as f:
+                    f.write(uploaded_file.getbuffer())
+                file_paths.append(file_path)
 
-        if st.button('Process Documents'):
-            with st.spinner('Processing documents...'):
-                st.session_state.text_chunks, st.session_state.metadata, st.session_state.index = index_document(file_paths, user_dir)
-            st.success('Files uploaded and processed successfully!')
+    if st.button('Process Documents'):
+        with st.spinner('Processing documents...'):
+            st.session_state.text_chunks, st.session_state.metadata, st.session_state.index = index_document(file_paths, user_dir)
+        st.success('Files uploaded and processed successfully!')
 
     st.title("Model Selection")
     with st.expander("Click here for more information about the models"):
@@ -147,81 +177,94 @@ with st.sidebar:
     model = st.radio('Select a model', ('meta-llama/Meta-Llama-3-8B', 'OpenAI/GPT-4o'))
 
 # Main content area
-st.title('Clinical Trial Protocol Assistant')
-# Display preconfigured prompts as pills
-st.write("Common Clinical Trial Questions:")
-preconfigured_prompts = get_preconfigured_prompts()
-selected_prompt = stp.pills("", preconfigured_prompts, key=f"pill_{st.session_state.pill_key}", index=None)
-
-# Display chat messages from history on app rerun
-for index, message in enumerate(st.session_state.messages):
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-        if message["role"] == "assistant" and "sources" in message:
-            display_clickable_sources(message["sources"], index)
-            st.empty()
-
-# Display chat input box for typing a custom question
-custom_prompt = st.chat_input("What would you like to know about the clinical trial?", key="user_input")
-
-# React to user input
-if custom_prompt:
-    frontend_prompt = custom_prompt
-    backend_prompt = custom_prompt
+if st.session_state.current_page == "main":
+    st.title('Clinical Trial Protocol Assistant')
     
-elif selected_prompt:
-    frontend_prompt = selected_prompt
-    backend_prompt = PROMPT_MAPPING[selected_prompt]
-   
-else:
-    frontend_prompt = None
-    backend_prompt = None
-            
-# React to user input
-if frontend_prompt:
-    st.chat_message("user").markdown(frontend_prompt)
+    # Display preconfigured prompts as pills
+    st.write("Common Clinical Trial Questions:")
+    preconfigured_prompts = get_preconfigured_prompts()
+    selected_prompt = stp.pills("", preconfigured_prompts, key=f"pill_{st.session_state.pill_key}", index=None)
 
-    if st.session_state.index is not None:
-        chunks = retrieve_chunks(backend_prompt, st.session_state.text_chunks, st.session_state.metadata, st.session_state.index)
-        
-        if chunks:
-            chat_history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
-            if model == 'meta-llama/Meta-Llama-3-8B':
-                response = generate_response_modal_llama(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
+    # Display chat messages from history on app rerun
+    for index, message in enumerate(st.session_state.messages):
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            if message["role"] == "assistant" and "sources" in message:
+                display_clickable_sources(message["sources"], index)
+                st.empty()
+
+    # Display chat input box for typing a custom question
+    custom_prompt = st.chat_input("What would you like to know about the clinical trial?", key="user_input")
+
+    # React to user input
+    if custom_prompt:
+        frontend_prompt = custom_prompt
+        backend_prompt = custom_prompt
+    elif selected_prompt:
+        frontend_prompt = selected_prompt
+        backend_prompt = PROMPT_MAPPING[selected_prompt]
+    else:
+        frontend_prompt = None
+        backend_prompt = None
+                
+    # React to user input
+    if frontend_prompt:
+        st.chat_message("user").markdown(frontend_prompt)
+
+        if st.session_state.index is not None:
+            chunks = retrieve_chunks(backend_prompt, st.session_state.text_chunks, st.session_state.metadata, st.session_state.index)
+            
+            if chunks:
+                chat_history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
+                if model == 'meta-llama/Meta-Llama-3-8B':
+                    response = generate_response_modal_llama(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
+                else:
+                    response = generate_response(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
+                
+                with st.chat_message("assistant"):
+                    st.markdown(response['answer'])
+                    if 'sources' in response:
+                        display_clickable_sources(response['sources'], len(st.session_state.messages))
+
+                # Add messages to chat history
+                st.session_state.messages.append({"role": "user", "content": frontend_prompt})
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": response['answer'],
+                    "sources": response['sources']
+                })
             else:
-                response = generate_response(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
-            
-            with st.chat_message("assistant"):
-                st.markdown(response['answer'])
-                if 'sources' in response:
-                    display_clickable_sources(response['sources'], len(st.session_state.messages))
-
-            # Add messages to chat history
-            st.session_state.messages.append({"role": "user", "content": frontend_prompt})
-            st.session_state.messages.append({
-                "role": "assistant", 
-                "content": response['answer'],
-                "sources": response['sources']
-            })
+                with st.chat_message("assistant"):
+                    st.markdown("I couldn't find any relevant information in the uploaded documents. Could you please rephrase your question or upload a relevant document?")
+                st.session_state.messages.append({"role": "user", "content": frontend_prompt})
+                st.session_state.messages.append({"role": "assistant", "content": "I couldn't find any relevant information in the uploaded documents. Could you please rephrase your question or upload a relevant document?"})
         else:
             with st.chat_message("assistant"):
-                st.markdown("I couldn't find any relevant information in the uploaded documents. Could you please rephrase your question or upload a relevant document?")
+                st.markdown("No documents have been processed yet. Please upload and process some documents first.")
             st.session_state.messages.append({"role": "user", "content": frontend_prompt})
-            st.session_state.messages.append({"role": "assistant", "content": "I couldn't find any relevant information in the uploaded documents. Could you please rephrase your question or upload a relevant document?"})
+            st.session_state.messages.append({"role": "assistant", "content": "No documents have been processed yet. Please upload and process some documents first."})
+
+        # Reset pill selection after processing
+        st.session_state.pill_key += 1
+        st.rerun()
+
+    # Add a button to clear chat history and user data
+    if st.button("Clear Chat History"):
+        st.session_state.messages = []
+        st.session_state.pill_key += 1  # Increment pill key to reset pill component
+        cleanup_user_files()
+        st.rerun()
+
+elif st.session_state.current_page == "sample_file_view":
+    st.title("Sample Clinical Trial Protocol")
+    if st.button("Back to Chat"):
+        st.session_state.current_page = "main"
+        st.rerun()
+    sample_file_path = os.path.join('sample_data', 'clinical_trial_protocol.pdf')
+    if os.path.exists(sample_file_path):
+        st.write("PDF Viewer:")
+        display_pdf_viewer(sample_file_path)
     else:
-        with st.chat_message("assistant"):
-            st.markdown("No documents have been processed yet. Please upload and process some documents first.")
-        st.session_state.messages.append({"role": "user", "content": frontend_prompt})
-        st.session_state.messages.append({"role": "assistant", "content": "No documents have been processed yet. Please upload and process some documents first."})
-
-     # Reset pill selection after processing
-    st.session_state.pill_key += 1
-    st.experimental_rerun()
-
-# Add a button to clear chat history and user data
-if st.button("Clear Chat History"):
-    st.session_state.messages = []
-    st.session_state.pill_key += 1  # Increment pill key to reset pill component
-    # cleanup_user_files()
-    # cleanup_user_files()
-    st.experimental_rerun()
+        st.error(f"Sample file not found at {sample_file_path}. Please make sure the file exists.")
+    
+    
