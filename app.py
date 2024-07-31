@@ -279,7 +279,7 @@ if st.session_state.current_page == "main":
     if st.button("Clear Chat History"):
         st.session_state.messages = []
         st.session_state.pill_key += 1  # Increment pill key to reset pill component
-        cleanup_user_files()
+        # cleanup_user_files()
         st.rerun()
 
 elif st.session_state.current_page == "sample_file_view":
