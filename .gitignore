@@ -1,5 +1,5 @@
 #ignore config files
-*.pdf
+# *.pdf
 *.docx
 uploads/
 index_file
