@@ -13,6 +13,37 @@ import streamlit.components.v1 as components
 import base64
 from streamlit_pdf_viewer import pdf_viewer
 
+def delete_file(file_path):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return True
+    return False
+
+def handle_file_upload():
+    user_dir = get_user_dir()
+    uploaded_files = st.file_uploader('Upload a clinical trial document', type=['pdf', 'docx', 'txt'], accept_multiple_files=True, key="file_uploader")
+    
+    if 'uploaded_file_paths' not in st.session_state:
+        st.session_state.uploaded_file_paths = []
+
+    current_files = []
+    for uploaded_file in uploaded_files:
+        file_path = os.path.join(user_dir, uploaded_file.name)
+        current_files.append(file_path)
+        if file_path not in st.session_state.uploaded_file_paths:
+            with open(file_path, 'wb') as f:
+                f.write(uploaded_file.getbuffer())
+            st.session_state.uploaded_file_paths.append(file_path)
+
+    # Check for files that were removed from the uploader
+    for file_path in st.session_state.uploaded_file_paths[:]:
+        if file_path not in current_files:
+            if delete_file(file_path):
+                st.session_state.uploaded_file_paths.remove(file_path)
+                st.success(f"File {os.path.basename(file_path)} has been deleted.")
+
+    return st.session_state.uploaded_file_paths
+
 
 # Function to get user-specific directory
 def get_user_dir():
@@ -141,30 +172,26 @@ st.set_page_config(page_title="Clinical Trial Protocol Assistant", layout="wide"
 with st.sidebar:
     st.title("Document Upload")
     use_sample_file = st.checkbox('Use sample clinical trial protocol')
-    user_dir = get_user_dir()
-    file_paths = []
-
+    
     if use_sample_file:
         sample_file_path = 'clinical_trial_protocol.pdf'
         file_dir = './sample_data'
-        file_paths.append(sample_file_path)
+        # Ensure the full path is used
+        full_sample_path = os.path.join(file_dir, sample_file_path)
+        file_paths = [full_sample_path]
         st.session_state.sample_file_selected = True
         if st.button("View Sample File"):
             st.session_state.current_page = "sample_file_view"
     else:
         st.session_state.sample_file_selected = False
-        uploaded_files = st.file_uploader('Upload a clinical trial document', type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
-        if uploaded_files:
-            file_dir = user_dir
-            for uploaded_file in uploaded_files:
-                file_path = os.path.join(user_dir, uploaded_file.name)
-                with open(file_path, 'wb') as f:
-                    f.write(uploaded_file.getbuffer())
-                file_paths.append(file_path)
+        file_paths = handle_file_upload()
 
     if st.button('Process Documents'):
         with st.spinner('Processing documents...'):
-            st.session_state.text_chunks, st.session_state.metadata, st.session_state.index = index_document(file_paths, user_dir)
+            print("The file paths are: ", file_paths)
+            # Use get_user_dir() only for uploaded files, not for sample files
+            base_dir = file_dir if use_sample_file else get_user_dir()
+            st.session_state.text_chunks, st.session_state.metadata, st.session_state.index = index_document(file_paths, base_dir)
         st.success('Files uploaded and processed successfully!')
 
     st.title("Model Selection")
