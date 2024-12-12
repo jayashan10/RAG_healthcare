@@ -5,7 +5,7 @@ python-docx
 faiss-cpu
 sentence-transformers
 python-dotenv
-modal==0.62.209
+modal==0.68.2
 llama-index
 streamlit-pills
 psutil

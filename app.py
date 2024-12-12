@@ -3,7 +3,7 @@ import os
 import uuid
 from document_processing import index_document
 from query_retrieval import retrieve_chunks
-from response_generation import generate_response, generate_response_modal_llama
+from response_generation import generate_response, generate_response_modal_llama, generate_response_mistral
 import pickle
 import faiss
 import shutil
@@ -153,6 +153,14 @@ def display_clickable_sources(sources, message_index):
             st.markdown(f"**Page:** {selected_source['page_number']}")
             st.markdown(f"**Excerpt:** {selected_source['excerpt']}")
 
+def format_model_label(model):
+    if model == 'meta-llama/Meta-Llama-3-8B':
+        return 'meta-llama/Meta-Llama-3-8B'
+    elif model == 'Mistral-7B-Instruct':
+        return 'Mistral-7B-Instruct (slow)'
+    return model
+
+
 
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
@@ -195,13 +203,20 @@ with st.sidebar:
         st.success('Files uploaded and processed successfully!')
 
     st.title("Model Selection")
+    # **OpenAI/GPT-4o**: This is a large language model trained by OpenAI. It's also good for generating human-like text. The responses are generated using the APIs.
     with st.expander("Click here for more information about the models"):
         st.write("""
         **meta-llama/Meta-Llama-3-8B**: This is a large language model trained by Meta. It's good for generating human-like text based on the provided context. It is deployed using Modal Labs
 
-        **OpenAI/GPT-4o**: This is a large language model trained by OpenAI. It's also good for generating human-like text. The responses are generated using the APIs.
+        **Mistral-7B-Instruct**: A powerful open-source language model from Mistral AI, 
+        offering strong performance for instruction following and general text generation.
         """)
-    model = st.radio('Select a model', ('meta-llama/Meta-Llama-3-8B', 'OpenAI/GPT-4o'))
+        
+    model = st.radio(
+    'Select a model', 
+    ('meta-llama/Meta-Llama-3-8B', 'Mistral-7B-Instruct'), 
+    format_func=format_model_label
+)
 
 # Main content area
 if st.session_state.current_page == "main":
@@ -245,6 +260,8 @@ if st.session_state.current_page == "main":
                 chat_history = [{"role": msg["role"], "content": msg["content"]} for msg in st.session_state.messages]
                 if model == 'meta-llama/Meta-Llama-3-8B':
                     response = generate_response_modal_llama(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
+                elif model == 'Mistral-7B-Instruct':
+                    response = generate_response_mistral(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
                 else:
                     response = generate_response(chunks, backend_prompt, [msg["content"] for msg in st.session_state.messages])
                 
