@@ -10,3 +10,4 @@ llama-index
 streamlit-pills
 psutil
 streamlit-pdf-viewer
+replicate
