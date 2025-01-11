@@ -15,5 +15,3 @@ llama-index-core
 numpy
 tqdm
 jupyter
-jupyter
-jupyter
