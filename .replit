@@ -1,9 +1,5 @@
-
 modules = ["python-3.12"]
-
-[interpreter]
-[interpreter.command]
-args = ["stdbuf", "-o", "L", "python3", "-m", "streamlit", "run", "app.py"]
+run = "streamlit run app.py"
 
 [nix]
 channel = "stable-24_05"
@@ -16,5 +12,5 @@ localPort = 8501
 externalPort = 80
 
 [[ports]]
-localPort = 8888
+localPort = 8502
 externalPort = 3000
