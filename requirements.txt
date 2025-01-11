@@ -11,3 +11,6 @@ streamlit-pills
 psutil
 streamlit-pdf-viewer
 replicate
+llama-index-core
+numpy
+tqdm
