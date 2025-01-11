@@ -60,6 +60,14 @@ def cleanup_user_files():
         shutil.rmtree(user_dir)
     print(f"Cleanup completed for user {st.session_state.user_id}")
 
+def get_trace_metadata():
+    return {
+        "user_id": st.session_state.user_id,
+        "session_id": st.session_state.session_id,
+        "model": st.session_state.get("selected_model", "default"),
+        "timestamp": time.time()
+    }
+
 def get_preconfigured_prompts():
     return list(PROMPT_MAPPING.keys())
 
