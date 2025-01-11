@@ -1,15 +1,12 @@
 
 modules = ["python-3.12"]
-
-[interpreter]
-[interpreter.command]
-args = ["stdbuf", "-o", "L", "python3", "-m", "streamlit", "run", "app.py"]
+run = ["sh", "-c", "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"]
 
 [nix]
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "streamlit run app.py"]
+run = ["sh", "-c", "streamlit run app.py --server.port 8501 --server.address 0.0.0.0"]
 
 [[ports]]
 localPort = 8501
