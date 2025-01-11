@@ -5,6 +5,13 @@ from dotenv import load_dotenv
 from typing import List
 import modal
 from modal import Cls
+from langsmith import Client
+from langsmith.run_helpers import traceable
+
+# Initialize LangSmith client
+client = Client()
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_PROJECT"] = "Clinical-Trial-Assistant"
 
 # Set your OpenAI API key
 load_dotenv('config.env')
@@ -14,6 +21,7 @@ load_dotenv('config.env')
 # Create a client instance
 client = openai.OpenAI()
 
+@traceable(run_type="chain")
 def generate_response(chunks: List[dict], query: str, chat_history: List[str]) -> dict:
     # Combine the most relevant chunks, limiting to a reasonable token count
     context = ' '.join([chunk['text'] for chunk in chunks[:5]])  # Adjust based on your chunk sizes and model's context window
@@ -83,6 +91,7 @@ def generate_response(chunks: List[dict], query: str, chat_history: List[str]) -
         'sources': sources
     }
 
+@traceable(run_type="chain")
 def generate_response_modal_llama(chunks: List[dict], query: str, chat_history: List[str]) -> dict:
     context = ' '.join([chunk['text'] for chunk in chunks[:5]])  # Adjust based on your chunk sizes and model's context window
 
@@ -122,6 +131,7 @@ def generate_response_modal_llama(chunks: List[dict], query: str, chat_history: 
     }
 
 
+@traceable(run_type="chain")
 def generate_response_mistral(chunks: List[dict], query: str, chat_history: List[str]) -> dict:
     # Combine relevant chunks
     context = ' '.join([chunk['text'] for chunk in chunks[:5]])
