@@ -8,3 +8,4 @@ text_chunks_file
 __pycache__/
 user_data
 .devcontainer/
+.replit
