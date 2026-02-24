@@ -126,7 +126,8 @@ def generate_response_modal_llama(
 
     # Call the Modal-deployed model
     Model = Cls.from_name("TensorRT-LLaMa", "Model")
-    response = Model.generate.remote(**model_input)
+    model = Model()  # Instantiate the class
+    response = model.generate.remote(**model_input)
 
     # The response is a list with one item (since we sent one prompt)
     answer = response[0] if response else "No response generated."
