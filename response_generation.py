@@ -1,5 +1,4 @@
 import os
-import replicate
 import openai  # Commented out OpenAI
 from dotenv import load_dotenv
 from typing import List
@@ -7,6 +6,13 @@ import modal
 from modal import Cls
 from langsmith import Client
 from langsmith.run_helpers import traceable
+
+# Optional replicate import (may fail on Python 3.14+)
+try:
+    import replicate
+except Exception as e:
+    print(f"Warning: Could not import replicate: {e}")
+    replicate = None
 
 # Initialize LangSmith client
 client = Client()
@@ -18,12 +24,24 @@ load_dotenv("config.env")
 # openai.api_key = os.getenv('OPENAI_API_KEY')  # Commented out OpenAI
 
 
-# Create a client instance
-client = openai.OpenAI()
+# Create a client instance (optional - will be None if no API key)
+client = None
+try:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        client = openai.OpenAI()
+except Exception as e:
+    print(f"Warning: Could not initialize OpenAI client: {e}")
 
 
 @traceable(run_type="chain")
 def generate_response(chunks: List[dict], query: str, chat_history: List[str]) -> dict:
+    if client is None:
+        return {
+            "answer": "Error: OpenAI API not configured. Please use the Llama or Mistral model instead.",
+            "sources": [],
+        }
+
     # Combine the most relevant chunks, limiting to a reasonable token count
     context = " ".join(
         [chunk["text"] for chunk in chunks[:5]]
@@ -131,6 +149,12 @@ def generate_response_modal_llama(
 def generate_response_mistral(
     chunks: List[dict], query: str, chat_history: List[str]
 ) -> dict:
+    if replicate is None:
+        return {
+            "answer": "Error: Replicate API not available. Please use the Llama model instead.",
+            "sources": [],
+        }
+
     # Combine relevant chunks
     context = " ".join([chunk["text"] for chunk in chunks[:5]])
 
