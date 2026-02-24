@@ -125,7 +125,7 @@ tensorrt_image = tensorrt_image.run_commands(
 
 # ## Compiling the engine
 
-MAX_INPUT_LEN, MAX_OUTPUT_LEN = 256, 256
+MAX_INPUT_LEN, MAX_OUTPUT_LEN = 6144, 2048
 MAX_NUM_TOKENS = 2**17
 MAX_BATCH_SIZE = 1024
 ENGINE_DIR = "/root/model/model_output"
